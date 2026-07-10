@@ -22,7 +22,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-BACKEND_URL = "http://127.0.0.1:8501/api/v1"
+BACKEND_URL = "https://tool-research-creatives-marketer.onrender.com"
 
 st.markdown("""
     <div style='text-align: center; padding: 15px 0;'>
