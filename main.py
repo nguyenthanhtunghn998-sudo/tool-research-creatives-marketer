@@ -107,7 +107,7 @@ async def generate_matrix(product_description: str, target_market: str = "Vietna
 
     try:
         # Sử dụng mô hình ổn định nhất để bóc cấu trúc dữ liệu khổng lồ
-        model = genai.GenerativeModel(model_name="gemini-2.5-pro")
+        model = genai.GenerativeModel(model_name="gemini-2.5-flash")
         
         response = model.generate_content(
             [system_instruction, prompt],
@@ -288,7 +288,7 @@ async def analyze_performance(report_data_table: str):
     
     try:
         model = genai.GenerativeModel(
-            model_name="gemini-2.5-pro",
+            model_name="gemini-2.5-flash",
             generation_config={"response_mime_type": "application/json"}
         )
         response = model.generate_content([system_instruction, f"Dữ liệu báo cáo quảng cáo thực tế:\n{report_data_table}"])
