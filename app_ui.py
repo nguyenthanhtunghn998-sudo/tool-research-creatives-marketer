@@ -26,7 +26,7 @@ BACKEND_URL = "https://tool-research-creatives-marketer.onrender.com/api/v1"
 
 st.markdown("""
     <div style='text-align: center; padding: 15px 0;'>
-        <h1 style='color: #1E293B; font-size: 32px; font-weight: 700; margin-bottom: 5px;'>🎯 CreativeOps AI Workspace v2.1</h1>
+        <h1 style='color: #1E293B; font-size: 32px; font-weight: 700; margin-bottom: 5px;'>🎯 CreativeOps AI Workspace v2.2</h1>
         <p style='color: #64748B; font-size: 15px;'>Định dạng Prompt Gemini Ảnh Độc Quyền & Đồng Bộ Hóa Ma Trận Excel Gốc</p>
     </div>
 """, unsafe_allow_html=True)
@@ -51,8 +51,10 @@ with tab1:
                 if res.status_code == 200:
                     st.session_state["matrix_data"] = res.json()
                     st.toast('Khởi tạo ma trận thành công!', icon='🎉')
-                else: st.error(f"Lỗi: {res.text}")
-            except Exception as e: st.error(f"Lỗi kết nối máy chủ: {str(e)}")
+                else: 
+                    st.error(f"Lỗi: {res.text}")
+            except Exception as e: 
+                st.error(f"Lỗi kết nối máy chủ: {str(e)}")
 
     st.divider()
 
@@ -90,15 +92,17 @@ with tab1:
                                 st.markdown(f"🖼️ **Layout Bố cục Ảnh (Static):** {h['static_layout']}")
                                 st.markdown(f"✍️ **Hướng captions (Body Copy):** {h['copy_direction']}")
                             with col_prompt:
-                                st.markdown("🤖 **Gemini Image Prompt Format Optimized:**")
+                                st.markdown("🤖 **AI Production Prompt (Đồng bộ từ Backend):**")
                                 
-                                # CẤU TRÚC PROMPT MỚI THEO FORMAT FORMAT YÊU CẦU CỦA USER
-                                sd_prompt = f"A cinematic TikTok-style commercial ad for {data.get('project_prefix', 'Brand')}\n\nStyle:\n- Fast-paced commercial aesthetic\n- High production value advertising\n- Blue-green accents\n- Style: {s_idea['visual_direction']}\n\nScene:\n- {h['static_layout']}\n- High detail composition, studio lighting\n\nLarge text:\n\"{h['hook_text']}\"\n\nSecond text:\n\"Concept: {s_idea['concept_name']}\"\n\nSubtext:\n\"{h['copy_direction']}\"\n\nAspect ratio 1080x1080"
-                                video_prompt = f"Commercial dynamic video scene, high production value. Visual action for first 3 seconds: {h['video_visual']}, smooth motion, stunning colors, studio grade."
+                                # FIX LOGIC TẠI ĐÂY: Đọc trực tiếp prompt chuẩn từ cấu trúc JSON Backend v2.2
+                                sd_prompt = h.get("image_prompt", "Không có prompt ảnh được tạo từ AI")
+                                video_prompt = h.get("video_prompt", "Không có prompt video được tạo từ AI")
                                 
                                 t_sd, t_vid = st.tabs(["🖼️ Image Prompt", "🎥 Video Prompt"])
-                                with t_sd: st.text_area("Gemini / Imagen 3 Prompt Structure:", value=sd_prompt, height=220, key=f"sd_{p_idx}_{b_idx}_{s_idx}_{h_idx}")
-                                with t_vid: st.text_area("Kling AI / Runway / Luma:", value=video_prompt, height=120, key=f"vid_{p_idx}_{b_idx}_{s_idx}_{h_idx}")
+                                with t_sd: 
+                                    st.text_area("Imagen 3 / Midjourney Prompt (Tiếng Anh):", value=sd_prompt, height=220, key=f"sd_{p_idx}_{b_idx}_{s_idx}_{h_idx}")
+                                with t_vid: 
+                                    st.text_area("Runway / Sora / Kling Video Prompt:", value=video_prompt, height=120, key=f"vid_{p_idx}_{b_idx}_{s_idx}_{h_idx}")
                             st.markdown("<hr style='margin:10px 0; border-top: 1px dashed #CBD5E1;'>", unsafe_allow_html=True)
 
         st.markdown("<h4 style='color: #334155;'>Bước 2: Đóng gói và xuất bản tài nguyên</h4>", unsafe_allow_html=True)
