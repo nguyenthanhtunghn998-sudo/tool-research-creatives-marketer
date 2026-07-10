@@ -101,7 +101,7 @@ async def generate_matrix(product_description: str, target_market: str = "Vietna
     """
 
     try:
-        model = genai.GenerativeModel(model_name="gemini-2.5-flash")
+        model = genai.GenerativeModel(model_name="gemini-3.5-flash")
         response = model.generate_content(
             [system_instruction, prompt],
             generation_config={
@@ -230,7 +230,7 @@ async def generate_dynamic_naming(payload: NamingPayload):
 async def analyze_performance(report_data_table: str):
     system_instruction = "Bạn là một Lead Data Analyst kiêm Performance Marketing Expert chuyên tối ưu tài nguyên Ads..."
     try:
-        model = genai.GenerativeModel(model_name="gemini-2.5-flash")
+        model = genai.GenerativeModel(model_name="gemini-3.5-flash")
         response = model.generate_content([system_instruction, f"Dữ liệu báo cáo quảng cáo thực tế:\n{report_data_table}"])
         text_response = response.text.strip()
         match = re.search(r'\{.*\}', text_response, re.DOTALL)
