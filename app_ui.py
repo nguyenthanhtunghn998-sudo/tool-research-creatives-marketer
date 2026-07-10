@@ -22,7 +22,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-BACKEND_URL = "https://tool-research-creatives-marketer.onrender.com/api/v1/generate-matrix"
+BACKEND_URL = "https://tool-research-creatives-marketer.onrender.com/api/v1"
 
 st.markdown("""
     <div style='text-align: center; padding: 15px 0;'>
