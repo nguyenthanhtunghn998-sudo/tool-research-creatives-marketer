@@ -71,7 +71,12 @@ class NamingPayload(BaseModel):
     format_code: str
     lang_code: str
 
-# --- ENDPOINT 1: PHÂN RÃ MA TRẬN Ý TƯỞNG (ĐÃ FIX CHUẨN CHO GEMINI ĐỜI MỚI) ---
+# --- ENDPOINT TRANG CHỦ: SỬA LỖI 404 NOT FOUND KHI DEPLOY RENDER ---
+@app.get("/")
+def read_root():
+    return {"status": "online", "message": "CreativeOps AI Engine đang hoạt động thành công!"}
+
+# --- ENDPOINT 1: PHÂN RÃ MA TRẬN Ý TƯỞNG (ĐÃ SỬA CHỐNG LỖI ĐỨT CHUỖI JSON) ---
 @app.post("/api/v1/generate-matrix", response_model=CreativeMatrixResponse)
 async def generate_matrix(product_description: str, target_market: str = "Vietnam"):
     system_instruction = """
@@ -89,6 +94,8 @@ async def generate_matrix(product_description: str, target_market: str = "Vietna
 
     Với mỗi Persona, hãy tạo ra 2 Big Ideas. Mỗi Big Idea có 2 Small Ideas (Concepts). Mỗi Small Idea sinh ra 2 Suggested Hooks cụ thể, thực chiến có kèm Layout ảnh tĩnh và Kịch bản video 3 giây đầu.
     Mã hóa project_prefix bằng 3 chữ cái viết hoa đại diện cho sản phẩm (Ví dụ sản phẩm Imely -> IML).
+    
+    BẮT BUỘC: Hãy trả về dữ liệu thuần định dạng JSON, không bao gồm các ký tự đặc biệt làm hỏng chuỗi.
     """
 
     prompt = f"""
@@ -99,18 +106,27 @@ async def generate_matrix(product_description: str, target_market: str = "Vietna
     """
 
     try:
-        # Sử dụng cấu hình mạnh mẽ nhất của Gemini để ép tuân thủ Pydantic Schema
-        model = genai.GenerativeModel(model_name="gemini-2.5-flash")
+        # Sử dụng mô hình ổn định nhất để bóc cấu trúc dữ liệu khổng lồ
+        model = genai.GenerativeModel(model_name="gemini-2.5-pro")
         
         response = model.generate_content(
             [system_instruction, prompt],
             generation_config={
+                "temperature": 0.5,
+                "max_output_tokens": 8192,
                 "response_mime_type": "application/json",
-                "response_schema": CreativeMatrixResponse # Ép Gemini trả về chuẩn cấu trúc Pydantic
+                "response_schema": CreativeMatrixResponse # Ép Gemini tuân thủ chặt chẽ Pydantic Schema
             }
         )
         
-        matrix_data = json.loads(response.text)
+        # Làm sạch chuỗi JSON chống lỗi đứt gãy văn bản (Unterminated string)
+        clean_json_str = response.text.strip()
+        if clean_json_str.startswith("```json"):
+            clean_json_str = clean_json_str.split("```json")[1].split("```")[0].strip()
+        elif clean_json_str.startswith("```"):
+            clean_json_str = clean_json_str.split("```")[1].split("```")[0].strip()
+            
+        matrix_data = json.loads(clean_json_str)
         return matrix_data
     except Exception as e:
         print(f"❌ Lỗi Gemini rã ma trận: {str(e)}")
@@ -119,7 +135,7 @@ async def generate_matrix(product_description: str, target_market: str = "Vietna
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
-# --- ENDPOINT 2: XUẤT EXCEL CHUẨN DESIGN ĐẸP CAO CẤP (CHỮA XẤU) ---
+# --- ENDPOINT 2: XUẤT EXCEL CHUẨN DESIGN ĐẸP CAO CẤP ---
 @app.post("/api/v1/export-matrix-excel")
 async def export_matrix_excel(data: CreativeMatrixResponse):
     try:
@@ -129,7 +145,6 @@ async def export_matrix_excel(data: CreativeMatrixResponse):
             # --- SHEET 1: TARGET AUDIENCE ---
             attributes = ["DEMOGRAPHIC", "DESCRIPTION", "BEHAVIOR", "INSIGHTS", "MOTIVATION", "KEY MESSAGE", "FORMAT (gợi ý thôi)"]
             
-            # Loại bỏ cột Unnamed thừa, map trực tiếp từ Thuộc tính sang các Persona
             ta_dict = {"Thuộc Tính / Trường Dữ Liệu": attributes}
             
             for p in data.personas:
@@ -180,10 +195,9 @@ async def export_matrix_excel(data: CreativeMatrixResponse):
             # --- KHU VỰC ĐÚC KHUÔN STYLE ĐẸP (OPENPYXL MAGIC) ---
             workbook = writer.book
             
-            # Định nghĩa bảng màu & font chuẩn Corporate UI
             font_header = Font(name="Segoe UI", size=11, bold=True, color="FFFFFF")
             font_body = Font(name="Segoe UI", size=10, bold=False, color="1E293B")
-            fill_header = PatternFill(start_color="312E81", end_color="312E81", fill_type="solid") # Màu Indigo hoàng gia
+            fill_header = PatternFill(start_color="312E81", end_color="312E81", fill_type="solid") 
             align_center = Alignment(horizontal="center", vertical="center", wrap_text=True)
             align_left = Alignment(horizontal="left", vertical="top", wrap_text=True)
             
@@ -194,7 +208,7 @@ async def export_matrix_excel(data: CreativeMatrixResponse):
                 bottom=Side(style='thin', color='E2E8F0')
             )
             
-            # Style cho Sheet 1: Target Audience
+            # Style cho Sheet 1
             ws1 = workbook["Target Audience"]
             ws1.row_dimensions[1].height = 28
             for col_idx in range(1, ws1.max_column + 1):
@@ -213,13 +227,12 @@ async def export_matrix_excel(data: CreativeMatrixResponse):
                     else:
                         cell.alignment = align_left
             
-            # Tự chỉnh độ rộng thông minh cho Sheet 1
             ws1.column_dimensions['A'].width = 25
             for col in range(2, ws1.max_column + 1):
                 col_letter = get_column_letter(col)
-                ws1.column_dimensions[col_letter].width = 40 # Cột thông tin rộng rãi để đọc Insight
+                ws1.column_dimensions[col_letter].width = 40 
                 
-            # Style cho Sheet 2: Creative Matrix Management
+            # Style cho Sheet 2
             ws2 = workbook["Creative Matrix Management"]
             ws2.row_dimensions[1].height = 28
             for col_idx in range(1, ws2.max_column + 1):
@@ -234,11 +247,10 @@ async def export_matrix_excel(data: CreativeMatrixResponse):
                     cell.border = thin_border
                     cell.alignment = align_left
                     
-            # Tự chỉnh độ rộng tự động cho Sheet 2
             for col in ws2.columns:
                 max_len = max(len(str(cell.value or '')) for cell in col)
                 col_letter = get_column_letter(col[0].column)
-                ws2.column_dimensions[col_letter].width = min(max(max_len + 3, 14), 45) # Giới hạn không quá rộng, không quá hẹp
+                ws2.column_dimensions[col_letter].width = min(max(max_len + 3, 14), 45)
 
         output.seek(0)
         return StreamingResponse(
@@ -254,12 +266,8 @@ async def export_matrix_excel(data: CreativeMatrixResponse):
 @app.post("/api/v1/generate-dynamic-naming")
 async def generate_dynamic_naming(payload: NamingPayload):
     idea_str = str(payload.idea_number).zfill(3)
-    # Tạo mã Code chuẩn cấu trúc: IML-ROM-DR-001-ST-EN
     creative_code = f"{payload.project_prefix}-{payload.audience_code}-{payload.concept_code}-{idea_str}-{payload.format_code}-{payload.lang_code}"
-    
-    # Tạo tên hiển thị tường minh để nghiệm thu nội bộ công việc
     file_name_display = f"{payload.project_prefix} · {payload.audience_name} · {payload.concept_name} · Idea {idea_str} · Form: {payload.format_code} · [{payload.lang_code}]"
-    
     return {"creative_code": creative_code.upper(), "file_name_display": file_name_display}
 
 # --- ENDPOINT 4: AI PHÂN TÍCH HIỆU SUẤT DATA-DRIVEN ---
@@ -271,19 +279,24 @@ async def analyze_performance(report_data_table: str):
     Nhiệm vụ của bạn là bóc tách dữ liệu để phân loại: Nhóm tài nguyên nào là Winner (giữ lại, scale up), nhóm nào là Loser (tắt, đổi hook).
     
     Hãy phân tích và trả về cấu trúc JSON chuẩn có các keys sau:
-    1. overall_evaluation (Đánh giá chung toàn bộ chiến dịch)
-    2. top_performing_persona (Mã/Tên nhóm đối tượng chuyển đổi tốt nhất)
-    3. top_performing_concept (Mã/Tên concept sáng tạo mang lại hiệu quả cao nhất)
-    4. detailed_insights (Mảng các object, mỗi object gồm: asset_group, status, metric_summary, ai_recommendation)
-    5. next_action_steps (Mảng danh sách các hành động cần thực thi ngay lập tức)
+    1. overall_evaluation
+    2. top_performing_persona
+    3. top_performing_concept
+    4. detailed_insights
+    5. next_action_steps
     """
     
     try:
         model = genai.GenerativeModel(
-            model_name="gemini-2.5-flash",
+            model_name="gemini-2.5-pro",
             generation_config={"response_mime_type": "application/json"}
         )
         response = model.generate_content([system_instruction, f"Dữ liệu báo cáo quảng cáo thực tế:\n{report_data_table}"])
-        return json.loads(response.text)
+        
+        clean_json_str = response.text.strip()
+        if clean_json_str.startswith("```json"):
+            clean_json_str = clean_json_str.split("```json")[1].split("```")[0].strip()
+            
+        return json.loads(clean_json_str)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Lỗi AI phân tích dữ liệu: {str(e)}")
